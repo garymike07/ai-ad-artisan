@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -10,15 +11,23 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Wand2, Download, Save, Palette, Type, Image as ImageIcon } from "lucide-react";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Tables } from "@/integrations/supabase/types";
+
+type AdProject = Tables<"ad_projects">;
+type ProjectContent = {
+  headline?: string;
+  bodyText?: string;
+  cta?: string;
+  bgColor?: string;
+  imageUrl?: string;
+};
 
 export default function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { isSignedIn, user } = useUser();
   const [loading, setLoading] = useState(false);
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<AdProject | null>(null);
   
   const [title, setTitle] = useState("");
   const [headline, setHeadline] = useState("");
@@ -28,61 +37,43 @@ export default function Editor() {
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (!session?.user) {
-          setTimeout(() => {
-            navigate("/auth");
-          }, 0);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (!session?.user) {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (id && user) {
-      fetchProject();
+    if (!isSignedIn) {
+      navigate("/auth");
     }
-  }, [id, user]);
+  }, [isSignedIn, navigate]);
 
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
+    if (!id || !user) return;
+
     try {
       const { data, error } = await supabase
         .from("ad_projects")
         .select("*")
         .eq("id", id)
-        .single();
+        .single<AdProject>();
 
       if (error) throw error;
-      
+      if (!data) return;
+
       setProject(data);
-      setTitle(data.title || "");
-      
-      const content = (data.content as any) || {};
-      setHeadline(content.headline || "");
-      setBodyText(content.bodyText || "");
-      setCta(content.cta || "Learn More");
-      setBgColor(content.bgColor || "#8B5CF6");
-      setImageUrl(content.imageUrl || "");
-    } catch (error: any) {
-      toast.error("Failed to load project");
+      setTitle(data.title ?? "");
+
+      const content = (data.content as ProjectContent) || {};
+      setHeadline(content.headline ?? "");
+      setBodyText(content.bodyText ?? "");
+      setCta(content.cta ?? "Learn More");
+      setBgColor(content.bgColor ?? "#8B5CF6");
+      setImageUrl(content.imageUrl ?? "");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load project";
+      toast.error(message);
       navigate("/dashboard");
     }
-  };
+  }, [id, navigate, user]);
+
+  useEffect(() => {
+    void fetchProject();
+  }, [fetchProject]);
 
   const saveProject = async () => {
     if (!id) return;
@@ -100,8 +91,9 @@ export default function Editor() {
 
       if (error) throw error;
       toast.success("Project saved!");
-    } catch (error: any) {
-      toast.error("Failed to save project");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save project";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -119,7 +111,10 @@ export default function Editor() {
       });
 
       if (error) throw error;
-      
+      if (!data || typeof data !== "object" || typeof data.content !== "string") {
+        throw new Error("Invalid AI response");
+      }
+
       const content = data.content;
       const headlineMatch = content.match(/Headline:\s*(.+)/i);
       const bodyMatch = content.match(/Body:\s*(.+)/i);
@@ -130,8 +125,9 @@ export default function Editor() {
       if (ctaMatch) setCta(ctaMatch[1].trim());
       
       toast.success("AI copy generated!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to generate copy");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate copy";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -148,11 +144,15 @@ export default function Editor() {
       });
 
       if (error) throw error;
-      
+      if (!data || typeof data !== "object" || typeof data.imageUrl !== "string") {
+        throw new Error("Invalid image response");
+      }
+
       setImageUrl(data.imageUrl);
       toast.success("Image generated!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to generate image");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate image";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -162,7 +162,7 @@ export default function Editor() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={user} />
+      <Navbar />
       
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

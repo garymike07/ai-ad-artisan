@@ -1,67 +1,49 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, Image, FileText } from "lucide-react";
 import { toast } from "sonner";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Tables } from "@/integrations/supabase/types";
+
+type AdProject = Tables<"ad_projects">;
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [projects, setProjects] = useState<any[]>([]);
+  const { user } = useUser();
+  const [projects, setProjects] = useState<AdProject[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (!session?.user) {
-          setTimeout(() => {
-            navigate("/auth");
-          }, 0);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (!session?.user) {
-        navigate("/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
+  const fetchProjects = useCallback(async () => {
+    if (!user) {
+      setProjects([]);
+      setLoading(false);
+      return;
     }
-  }, [user]);
 
-  const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from("ad_projects")
         .select("*")
+        .eq("user_id", user.id)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setProjects(data || []);
-    } catch (error: any) {
-      toast.error("Failed to load projects");
+      setProjects(data ?? []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load projects";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    void fetchProjects();
+  }, [fetchProjects]);
 
   const createProject = async (templateType: string) => {
     if (!user) return;
@@ -75,13 +57,16 @@ export default function Dashboard() {
           title: `New ${templateType} Ad`,
         })
         .select()
-        .single();
+        .single<AdProject>();
 
       if (error) throw error;
+      if (!data) return;
+
       toast.success("Project created!");
       navigate(`/editor/${data.id}`);
-    } catch (error: any) {
-      toast.error("Failed to create project");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create project";
+      toast.error(message);
     }
   };
 
@@ -89,7 +74,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={user} />
+      <Navbar />
       
       <main className="container mx-auto px-4 py-12">
         <div className="mb-12">

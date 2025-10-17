@@ -1,33 +1,14 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@clerk/clerk-react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Wand2, Image, Zap, ArrowRight, Check } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
-import type { User, Session } from "@supabase/supabase-js";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { isSignedIn } = useUser();
 
   const features = [
     {
@@ -56,7 +37,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={user} />
+      <Navbar />
       
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -88,10 +69,10 @@ const Index = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 size="lg"
-                onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                onClick={() => navigate(isSignedIn ? "/dashboard" : "/auth")}
                 className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-glow gap-2"
               >
-                {user ? "Go to Dashboard" : "Start Creating Free"}
+                {isSignedIn ? "Go to Dashboard" : "Start Creating Free"}
                 <ArrowRight className="w-5 h-5" />
               </Button>
               <Button 
@@ -155,7 +136,7 @@ const Index = () => {
                 </ul>
                 <Button 
                   size="lg"
-                  onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                  onClick={() => navigate(isSignedIn ? "/dashboard" : "/auth")}
                   className="mt-8 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity gap-2"
                 >
                   Get Started Now
@@ -187,7 +168,7 @@ const Index = () => {
           </p>
           <Button 
             size="lg"
-            onClick={() => navigate(user ? "/dashboard" : "/auth")}
+            onClick={() => navigate(isSignedIn ? "/dashboard" : "/auth")}
             className="bg-background text-foreground hover:bg-background/90 text-lg px-8 py-6 gap-2"
           >
             Start Free Trial

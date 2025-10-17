@@ -1,32 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sparkles, LogOut, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Sparkles } from "lucide-react";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
-interface NavbarProps {
-  user?: any;
-}
-
-export const Navbar = ({ user }: NavbarProps) => {
+export const Navbar = () => {
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Error signing out");
-    } else {
-      toast.success("Signed out successfully");
-      navigate("/");
-    }
-  };
+  const { user } = useUser();
 
   return (
     <nav className="border-b border-border bg-card/50 backdrop-blur-lg sticky top-0 z-50">
@@ -42,44 +21,27 @@ export const Navbar = ({ user }: NavbarProps) => {
           </Link>
 
           <div className="flex items-center gap-4">
-            {user ? (
-              <>
+            <SignedOut>
+              <SignInButton mode="modal">
                 <Button
-                  variant="ghost"
-                  onClick={() => navigate("/dashboard")}
-                >
-                  Dashboard
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="rounded-full">
-                      <User className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("/auth")}
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
                 >
                   Sign In
                 </Button>
-                <Button
-                  onClick={() => navigate("/auth")}
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-                >
-                  Get Started
-                </Button>
-              </>
-            )}
+              </SignInButton>
+            </SignedOut>
+
+            <SignedIn>
+              <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+                Dashboard
+              </Button>
+              <div className="flex items-center gap-3 rounded-full border border-border bg-card/60 px-3 py-1 shadow-sm">
+                <span className="hidden text-sm font-medium md:block">
+                  {user?.fullName ?? user?.primaryEmailAddress?.emailAddress}
+                </span>
+                <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
+              </div>
+            </SignedIn>
           </div>
         </div>
       </div>
