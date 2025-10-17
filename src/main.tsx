@@ -10,6 +10,12 @@ if (!PUBLISHABLE_KEY) {
   throw new Error("Add your Clerk Publishable Key to the .env file");
 }
 
+const rootDocument = document.documentElement;
+if (!rootDocument.classList.contains("dark")) {
+  rootDocument.classList.add("dark");
+}
+rootDocument.style.colorScheme = "dark";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>

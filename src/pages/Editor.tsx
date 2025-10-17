@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Wand2, Download, Save, Palette, Type, Image as ImageIcon } from "lucide-react";
+import { Download, Save, Palette, Type, Image as ImageIcon, ClipboardList, Layers } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type AdProject = Tables<"ad_projects">;
@@ -99,63 +99,16 @@ export default function Editor() {
     }
   };
 
-  const generateCopy = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-ad-copy", {
-        body: {
-          prompt: `Create ad copy for: ${title}`,
-          adType: project?.template_type || "social",
-          tone: "professional",
-        },
-      });
-
-      if (error) throw error;
-      if (!data || typeof data !== "object" || typeof data.content !== "string") {
-        throw new Error("Invalid AI response");
-      }
-
-      const content = data.content;
-      const headlineMatch = content.match(/Headline:\s*(.+)/i);
-      const bodyMatch = content.match(/Body:\s*(.+)/i);
-      const ctaMatch = content.match(/CTA:\s*(.+)/i);
-
-      if (headlineMatch) setHeadline(headlineMatch[1].trim());
-      if (bodyMatch) setBodyText(bodyMatch[1].trim());
-      if (ctaMatch) setCta(ctaMatch[1].trim());
-      
-      toast.success("AI copy generated!");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to generate copy";
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+  const openGuidedBrief = () => {
+    toast("Use the creative checklist to align messaging, tone, and audience before drafting.");
   };
 
-  const generateImage = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-ad-image", {
-        body: {
-          prompt: `Professional advertising image for: ${headline || title}. Modern, clean, eye-catching.`,
-          size: "1024x1024",
-        },
-      });
-
-      if (error) throw error;
-      if (!data || typeof data !== "object" || typeof data.imageUrl !== "string") {
-        throw new Error("Invalid image response");
-      }
-
-      setImageUrl(data.imageUrl);
-      toast.success("Image generated!");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to generate image";
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+  const applyPreset = (preset: { headline: string; bodyText: string; cta: string; bgColor: string }) => {
+    setHeadline(preset.headline);
+    setBodyText(preset.bodyText);
+    setCta(preset.cta);
+    setBgColor(preset.bgColor);
+    toast.success("Preset applied");
   };
 
   if (!user || !project) return null;
@@ -169,29 +122,35 @@ export default function Editor() {
           {/* Editor Panel */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold">Ad Editor</h1>
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground/60 mb-2">Campaign builder</p>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Creative Workspace</h1>
+              </div>
               <div className="flex gap-2">
-                <Button onClick={saveProject} disabled={loading} className="gap-2">
-                  <Save className="w-4 h-4" /> Save
+                <Button variant="outline" onClick={openGuidedBrief} className="gap-2">
+                  <ClipboardList className="w-4 h-4" /> Brief checklist
+                </Button>
+                <Button onClick={saveProject} disabled={loading} className="gap-2 bg-gradient-to-r from-primary to-accent">
+                  <Save className="w-4 h-4" /> Save progress
                 </Button>
               </div>
             </div>
 
             <Tabs defaultValue="content" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-3 glass-panel border-transparent">
                 <TabsTrigger value="content" className="gap-2">
                   <Type className="w-4 h-4" /> Content
                 </TabsTrigger>
                 <TabsTrigger value="design" className="gap-2">
                   <Palette className="w-4 h-4" /> Design
                 </TabsTrigger>
-                <TabsTrigger value="ai" className="gap-2">
-                  <Wand2 className="w-4 h-4" /> AI Tools
+                <TabsTrigger value="workflow" className="gap-2">
+                  <Layers className="w-4 h-4" /> Presets
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="content" className="space-y-4">
-                <Card className="p-6 space-y-4">
+                <Card className="p-6 space-y-4 glass-panel border-transparent">
                   <div>
                     <Label htmlFor="title">Project Title</Label>
                     <Input
@@ -236,7 +195,7 @@ export default function Editor() {
               </TabsContent>
 
               <TabsContent value="design" className="space-y-4">
-                <Card className="p-6 space-y-4">
+                <Card className="p-6 space-y-4 glass-panel border-transparent">
                   <div>
                     <Label htmlFor="bgColor">Background Color</Label>
                     <div className="flex gap-2">
@@ -267,34 +226,59 @@ export default function Editor() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="ai" className="space-y-4">
-                <Card className="p-6 space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">AI Copy Generator</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate professional ad copy with AI based on your project title
-                    </p>
-                    <Button 
-                      onClick={generateCopy} 
-                      disabled={loading}
-                      className="w-full gap-2 bg-gradient-to-r from-primary to-accent"
-                    >
-                      <Wand2 className="w-4 h-4" /> Generate Copy
-                    </Button>
+              <TabsContent value="workflow" className="space-y-4">
+                <Card className="p-6 space-y-6 glass-panel border-transparent">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-primary" /> Favorite presets
+                    </h3>
+                    <div className="grid gap-3">
+                      {[
+                        {
+                          name: "Product launch spotlight",
+                          headline: "Launch your next big release",
+                          bodyText: "Highlight key benefits, pricing, and urgency to drive rapid adoption.",
+                          cta: "See launch plan",
+                          bgColor: "#5B2EFF",
+                        },
+                        {
+                          name: "Seasonal promo",
+                          headline: "Seasonal offer just dropped",
+                          bodyText: "Bundle your best sellers and give early access to loyal customers.",
+                          cta: "Preview collection",
+                          bgColor: "#0F6B81",
+                        },
+                        {
+                          name: "Event registration",
+                          headline: "Join our live workshop",
+                          bodyText: "Walk through strategy, creative, and measurement with our experts.",
+                          cta: "Reserve a seat",
+                          bgColor: "#E2543D",
+                        },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => applyPreset(preset)}
+                          className="text-left rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 px-4 py-3 transition-all"
+                        >
+                          <p className="text-sm font-semibold">{preset.name}</p>
+                          <p className="text-xs text-muted-foreground">{preset.headline}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="font-semibold mb-2">AI Image Generator</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Create a custom image using AI based on your headline
-                    </p>
-                    <Button 
-                      onClick={generateImage} 
-                      disabled={loading}
-                      className="w-full gap-2 bg-gradient-to-r from-primary to-accent"
-                    >
-                      <ImageIcon className="w-4 h-4" /> Generate Image
-                    </Button>
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4 text-primary" /> Creative checklist
+                    </h3>
+                    <ul className="space-y-2 text-sm text-muted-foreground/90">
+                      <li>• Define audience pain points and desired outcome.</li>
+                      <li>• Confirm tone, voice, and mandatory brand language.</li>
+                      <li>• List the essential visuals or product highlights.</li>
+                      <li>• Decide supporting channels for repurposed assets.</li>
+                    </ul>
                   </div>
                 </Card>
               </TabsContent>
@@ -304,13 +288,16 @@ export default function Editor() {
           {/* Preview Panel */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Preview</h2>
-              <Button variant="outline" size="sm" className="gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground/60 mb-2">Live preview</p>
+                <h2 className="text-2xl font-semibold">Campaign mockup</h2>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2 glass-panel border-transparent">
                 <Download className="w-4 h-4" /> Export
               </Button>
             </div>
 
-            <Card className="overflow-hidden shadow-elegant">
+            <Card className="overflow-hidden shadow-glow glass-panel border-transparent">
               <div 
                 className="aspect-square p-12 flex flex-col items-center justify-center text-center space-y-6"
                 style={{ backgroundColor: bgColor }}
@@ -326,7 +313,7 @@ export default function Editor() {
                 )}
                 
                 {headline && (
-                  <h3 className="text-4xl font-bold text-white drop-shadow-lg">
+                  <h3 className="text-4xl font-bold text-white drop-shadow-[0_12px_25px_rgba(0,0,0,0.45)]">
                     {headline}
                   </h3>
                 )}
@@ -340,7 +327,7 @@ export default function Editor() {
                 {cta && (
                   <Button 
                     size="lg"
-                    className="bg-white text-gray-900 hover:bg-gray-100 font-semibold px-8"
+                    className="bg-white text-gray-900 hover:bg-gray-100 font-semibold px-8 shadow-lg"
                   >
                     {cta}
                   </Button>

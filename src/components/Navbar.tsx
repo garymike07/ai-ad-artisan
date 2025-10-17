@@ -12,11 +12,11 @@ export const Navbar = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-accent">
-              <Sparkles className="w-6 h-6 text-primary-foreground" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-accent shadow-[0_8px_30px_rgba(109,88,255,0.45)] transition-transform duration-300 group-hover:scale-105">
+              <Sparkles className="w-6 h-6 text-primary-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              AdGenius
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent tracking-wide">
+              Myk adMaker
             </span>
           </Link>
 
